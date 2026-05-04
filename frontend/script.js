@@ -5,7 +5,7 @@ const API_URL = '/api';
 let currentSessionId = null;
 
 // DOM elements
-let chatMessages, chatInput, sendButton, totalCourses, courseTitles;
+let chatMessages, chatInput, sendButton, totalCourses, courseTitles, newChatBtn;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sendButton = document.getElementById('sendButton');
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
+    newChatBtn = document.getElementById('newChatBtn');
     
     setupEventListeners();
     createNewSession();
@@ -30,6 +31,9 @@ function setupEventListeners() {
     });
     
     
+    // New chat button
+    newChatBtn.addEventListener('click', newChat);
+
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -82,7 +86,7 @@ async function sendMessage() {
 
         // Replace loading message with response
         loadingMessage.remove();
-        addMessage(data.answer, 'assistant', data.sources);
+        addMessage(data.answer, 'assistant', data.sources, false, data.source_links || []);
 
     } catch (error) {
         // Replace loading message with error
@@ -110,22 +114,27 @@ function createLoadingMessage() {
     return messageDiv;
 }
 
-function addMessage(content, type, sources = null, isWelcome = false) {
+function addMessage(content, type, sources = null, isWelcome = false, sourceLinks = []) {
     const messageId = Date.now();
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}${isWelcome ? ' welcome-message' : ''}`;
     messageDiv.id = `message-${messageId}`;
-    
-    // Convert markdown to HTML for assistant messages
+
     const displayContent = type === 'assistant' ? marked.parse(content) : escapeHtml(content);
-    
+
     let html = `<div class="message-content">${displayContent}</div>`;
-    
+
     if (sources && sources.length > 0) {
+        const sourceItems = sources.map((s, i) => {
+            const url = sourceLinks && sourceLinks[i];
+            return url
+                ? `<a class="source-tag" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s)}</a>`
+                : `<span class="source-tag">${escapeHtml(s)}</span>`;
+        }).join('');
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${sourceItems}</div>
             </details>
         `;
     }
@@ -150,6 +159,18 @@ async function createNewSession() {
     currentSessionId = null;
     chatMessages.innerHTML = '';
     addMessage('Welcome to the Course Materials Assistant! I can help you with questions about courses, lessons and specific content. What would you like to know?', 'assistant', null, true);
+}
+
+async function newChat() {
+    if (currentSessionId) {
+        try {
+            await fetch(`${API_URL}/session/${currentSessionId}`, { method: 'DELETE' });
+        } catch (_) {
+            // Non-critical — proceed regardless
+        }
+    }
+    createNewSession();
+    chatInput.focus();
 }
 
 // Load course statistics

@@ -22,7 +22,8 @@ class CourseSearchTool(Tool):
     
     def __init__(self, vector_store: VectorStore):
         self.store = vector_store
-        self.last_sources = []  # Track sources from last search
+        self.last_sources = []
+        self.last_source_links: List[Optional[str]] = []
     
     def get_tool_definition(self) -> Dict[str, Any]:
         """Return Anthropic tool definition for this tool"""
@@ -88,29 +89,31 @@ class CourseSearchTool(Tool):
     def _format_results(self, results: SearchResults) -> str:
         """Format search results with course and lesson context"""
         formatted = []
-        sources = []  # Track sources for the UI
-        
+        sources = []
+        source_links = []
+
         for doc, meta in zip(results.documents, results.metadata):
             course_title = meta.get('course_title', 'unknown')
             lesson_num = meta.get('lesson_number')
-            
-            # Build context header
+
             header = f"[{course_title}"
             if lesson_num is not None:
                 header += f" - Lesson {lesson_num}"
             header += "]"
-            
-            # Track source for the UI
+
             source = course_title
             if lesson_num is not None:
                 source += f" - Lesson {lesson_num}"
             sources.append(source)
-            
+
+            link = self.store.get_lesson_link(course_title, lesson_num) if lesson_num is not None else None
+            source_links.append(link)
+
             formatted.append(f"{header}\n{doc}")
-        
-        # Store sources for retrieval
+
         self.last_sources = sources
-        
+        self.last_source_links = source_links
+
         return "\n\n".join(formatted)
 
 class ToolManager:
@@ -140,15 +143,20 @@ class ToolManager:
         return self.tools[tool_name].execute(**kwargs)
     
     def get_last_sources(self) -> list:
-        """Get sources from the last search operation"""
-        # Check all tools for last_sources attribute
         for tool in self.tools.values():
             if hasattr(tool, 'last_sources') and tool.last_sources:
                 return tool.last_sources
         return []
 
+    def get_last_source_links(self) -> list:
+        for tool in self.tools.values():
+            if hasattr(tool, 'last_source_links') and tool.last_source_links:
+                return tool.last_source_links
+        return []
+
     def reset_sources(self):
-        """Reset sources from all tools that track sources"""
         for tool in self.tools.values():
             if hasattr(tool, 'last_sources'):
                 tool.last_sources = []
+            if hasattr(tool, 'last_source_links'):
+                tool.last_source_links = []

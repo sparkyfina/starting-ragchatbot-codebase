@@ -99,7 +99,7 @@ class RAGSystem:
         
         return total_courses, total_chunks
     
-    def query(self, query: str, session_id: Optional[str] = None) -> Tuple[str, List[str]]:
+    def query(self, query: str, session_id: Optional[str] = None) -> Tuple[str, List[str], List]:
         """
         Process a user query using the RAG system with tool-based search.
         
@@ -126,18 +126,14 @@ class RAGSystem:
             tool_manager=self.tool_manager
         )
         
-        # Get sources from the search tool
         sources = self.tool_manager.get_last_sources()
-
-        # Reset sources after retrieving them
+        source_links = self.tool_manager.get_last_source_links()
         self.tool_manager.reset_sources()
-        
-        # Update conversation history
+
         if session_id:
             self.session_manager.add_exchange(session_id, query, response)
-        
-        # Return response with sources from tool searches
-        return response, sources
+
+        return response, sources, source_links
     
     def get_course_analytics(self) -> Dict:
         """Get analytics about the course catalog"""
