@@ -44,6 +44,7 @@ class QueryResponse(BaseModel):
     """Response model for course queries"""
     answer: str
     sources: List[str]
+    source_links: List[Optional[str]] = []
     session_id: str
 
 class CourseStats(BaseModel):
@@ -62,16 +63,22 @@ async def query_documents(request: QueryRequest):
         if not session_id:
             session_id = rag_system.session_manager.create_session()
         
-        # Process query using RAG system
-        answer, sources = rag_system.query(request.query, session_id)
-        
+        answer, sources, source_links = rag_system.query(request.query, session_id)
+
         return QueryResponse(
             answer=answer,
             sources=sources,
+            source_links=source_links,
             session_id=session_id
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/session/{session_id}")
+async def delete_session(session_id: str):
+    """Clear a conversation session"""
+    rag_system.session_manager.clear_session(session_id)
+    return {"status": "ok"}
 
 @app.get("/api/courses", response_model=CourseStats)
 async def get_course_stats():
