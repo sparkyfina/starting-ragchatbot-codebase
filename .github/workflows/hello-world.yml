@@ -20,4 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Print Hello World
-        run: echo "Hello World — environment: ${{ github.event.inputs.environment || 'dev' }}"
+        #run: echo "Hello World - environment: ${{ github.event.inputs.environment || 'dev' }}"
+        run: echo "Hello World - environment"
+
